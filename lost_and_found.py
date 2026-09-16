@@ -164,13 +164,13 @@ def admin_page():
     if st.session_state.show_form == True:
         
         with st.form("add_item"):
-            item_name = st.text_input("Item Name")
+            item_name = st.text_input("Item Name:",["Sweater","Lunchbox", "Water Bottle", "Pencil Case", "Shirt", "Headphones", "Other" ])
 
-            category = st.selectbox("Select a category:",["Clothing","Electronics", "Lunchbox", "Water Bottle", "Pencil Case"])
+            category = st.selectbox("Category:",["Clothing","Electronics","School Supplies", "Food and Drink", "Personal Items"])
             brand = st.text_input("Brand")
-            color = st.selectbox("Select a color:",["Red","Orange", "Yellow", "Green", "Blue", "Purple"])
+            color = st.selectbox("Color:",["Red","Orange", "Yellow", "Green", "Blue", "Purple"])
 
-            location_found = st.selectbox("Select a location:",["Cafeteria","Central Plaza", "Buses", "Gym", "High School Building", "Middle School Building", "Elementary Building", "Preschool Building"])
+            location_found = st.selectbox("Location:",["Cafeteria","Central Plaza", "Buses", "Gym", "High School Building", "Middle School Building", "Elementary Building", "Preschool Building"])
             date_found = st.date_input("Date found")
             image = st.file_uploader("Image")
 
@@ -280,7 +280,7 @@ def student_page():
     st.subheader("Search")
     # linear search algorithm 
     search_field = st.selectbox("Search by", ["Name","Category", "Brand", "Color", "Location"])
-    search_text = st.text_input("Enter what you are looking for (e.g. adidas):")
+    search_text = st.text_input("Enter what you are looking for (e.g. red):")
 
     filtered_items = []
     if search_text == "":
