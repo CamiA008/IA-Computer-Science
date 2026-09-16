@@ -163,14 +163,14 @@ def admin_page():
 
     if st.session_state.show_form == True:
 
-        with st.form("add_item"):
+         with st.form("add_item"):
             item_name = st.text_input("Item Name")
 
-            category = st.text_input("Category")
+            category = st.selectbox(["Clothing","Electronics", "Lunchbox", "Water Bottle", "Pencil Case"])
             brand = st.text_input("Brand")
-            color = st.text_input("Color")
+            color = st.selectbox(["Red","Orange", "Yellow", "Green", "Blue", "Purple"])
 
-            location_found = st.text_input("Location found")
+            location_found = st.selectbox(["Cafeteria","Central Plaza", "Buses", "Gym", "High School Building", "Middle School Building", "Elementary Building", "Preschool Building"])
             date_found = st.date_input("Date found")
             image = st.file_uploader("Image")
 
