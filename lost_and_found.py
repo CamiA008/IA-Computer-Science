@@ -162,8 +162,8 @@ def admin_page():
     # Form required to add a new item 
 
     if st.session_state.show_form == True:
-
-         with st.form("add_item"):
+        
+        with st.form("add_item"):
             item_name = st.text_input("Item Name")
 
             category = st.selectbox(["Clothing","Electronics", "Lunchbox", "Water Bottle", "Pencil Case"])
