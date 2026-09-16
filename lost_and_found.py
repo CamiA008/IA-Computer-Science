@@ -280,11 +280,14 @@ def student_page():
     st.subheader("Search")
     # linear search algorithm 
     search_field = st.selectbox("Search by", ["Name","Category", "Brand", "Color", "Location"])
+
+    st.divider()
     st.text("Item names available: Sweater, Lunchbox, Water Bottle, Pencil Case, Shirt, Headphones, Other")
     st.text("Categories available: Clothing, Electronics, School Supplies, Food and Drink, Personal Items, Other")
     st.text("Colors available: Red, Orange, Yellow, Green, Blue, Purple, Brown, Black, White, Gray")
     st.text("Locations availables: Cafeteria,Central Plaza, Buses, Gym, High School Building, Middle School Building, Elementary Building, Preschool Building")
-
+    st.divider()
+    
     search_text = st.text_input("Enter what you are looking for (e.g. red):")
     
 
