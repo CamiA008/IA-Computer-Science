@@ -164,7 +164,7 @@ def admin_page():
     if st.session_state.show_form == True:
         
         with st.form("add_item"):
-            item_name = st.text_input("Item Name:",["Sweater","Lunchbox", "Water Bottle", "Pencil Case", "Shirt", "Headphones", "Other" ])
+            item_name = st.selectbox("Item Name:",["Sweater","Lunchbox", "Water Bottle", "Pencil Case", "Shirt", "Headphones", "Other"])
 
             category = st.selectbox("Category:",["Clothing","Electronics","School Supplies", "Food and Drink", "Personal Items"])
             brand = st.text_input("Brand")
