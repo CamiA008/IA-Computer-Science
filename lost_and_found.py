@@ -166,9 +166,9 @@ def admin_page():
         with st.form("add_item"):
             item_name = st.selectbox("Item Name",["Sweater","Lunchbox", "Water Bottle", "Pencil Case", "Shirt", "Headphones", "Other"])
 
-            category = st.selectbox("Category",["Clothing","Electronics","School Supplies", "Food and Drink", "Personal Items"])
+            category = st.selectbox("Category",["Clothing","Electronics","School Supplies", "Food and Drink", "Personal Items", "Other"])
             brand = st.text_input("Brand")
-            color = st.selectbox("Color",["Red","Orange", "Yellow", "Green", "Blue", "Purple"])
+            color = st.selectbox("Color",["Red","Orange", "Yellow", "Green", "Blue", "Purple", "Brown", "Black", "White", "Gray"])
 
             location_found = st.selectbox("Location",["Cafeteria","Central Plaza", "Buses", "Gym", "High School Building", "Middle School Building", "Elementary Building", "Preschool Building"])
             date_found = st.date_input("Date found")
@@ -280,7 +280,13 @@ def student_page():
     st.subheader("Search")
     # linear search algorithm 
     search_field = st.selectbox("Search by", ["Name","Category", "Brand", "Color", "Location"])
+    st.text("Item names available: Sweater","Lunchbox", "Water Bottle", "Pencil Case", "Shirt", "Headphones", "Other")
+    st.text("Categories available: Clothing","Electronics","School Supplies", "Food and Drink", "Personal Items", "Other")
+    st.text("Colors available: Red","Orange", "Yellow", "Green", "Blue", "Purple", "Brown", "Black", "White", "Gray")
+    st.text("Locations availables: Cafeteria","Central Plaza", "Buses", "Gym", "High School Building", "Middle School Building", "Elementary Building", "Preschool Building")
+
     search_text = st.text_input("Enter what you are looking for (e.g. red):")
+    
 
     filtered_items = []
     if search_text == "":
