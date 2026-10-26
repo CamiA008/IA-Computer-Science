@@ -2,298 +2,339 @@
 #streamlit run "lost_and_found.py"
 
 import streamlit as st
-from datetime import date 
-from object import Item 
+from datetime import date
+from pathlib import Path
+from object import Item
 import sqlite3
+ 
 
-#Connect to the database 
-
-connect = sqlite3.connect("sqlite.db", check_same_thread = False)
+DB_PATH = Path(__file__).parent / "sqlite.db"
+ 
+connect = sqlite3.connect(DB_PATH, check_same_thread=False)
 cursor = connect.cursor()
-
+ 
+# Create the tables only if they don't exist yet.
+# "IF NOT EXISTS" means this NEVER deletes or overwrites existing data.
+cursor.execute("""CREATE TABLE IF NOT EXISTS lost_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_name TEXT,
+    category TEXT,
+    brand TEXT,
+    color TEXT,
+    location_found TEXT,
+    date_found TEXT,
+    image BLOB
+)""")
+ 
+cursor.execute("""CREATE TABLE IF NOT EXISTS claims (
+    item_id INTEGER,
+    student_username TEXT,
+    claim_date TEXT,
+    status TEXT
+)""")
+connect.commit()
+ 
+# ---------------- SESSION STATE ----------------
 if "page" not in st.session_state:
-    st.session_state.page = "login" # remembers which screen user should see 
-
-if "role" not in st.session_state: # Remembers the role  
+    st.session_state.page = "login"  # remembers which screen user should see
+ 
+if "role" not in st.session_state:  # Remembers the role
     st.session_state.role = ""
-
+ 
 if "username" not in st.session_state:
     st.session_state.username = ""
-
-def home_page(): 
-    
+ 
+if "flash" not in st.session_state:  # message that survives st.rerun()
+    st.session_state.flash = ""
+ 
+ 
+# ---------------- HELPERS ----------------
+def flash(message):
+    # st.success() right before st.rerun() disappears instantly,
+    # so the message is saved and shown after the page reloads
+    st.session_state.flash = message
+ 
+ 
+def show_flash():
+    if st.session_state.flash != "":
+        st.success(st.session_state.flash)
+        st.session_state.flash = ""
+ 
+ 
+def logout_button():
+    if st.sidebar.button("Log out"):
+        st.session_state.page = "login"
+        st.session_state.role = ""
+        st.session_state.username = ""
+        st.rerun()
+ 
+ 
+def check_login(filename, username, password):
+    # Returns True if "username,password" is a line in the file
+    users = []
+    with open(Path(__file__).parent / filename, "r") as myfile:
+        for line in myfile:
+            users.append(line.strip())
+    return f"{username},{password}" in users  # The f lets you put variables inside of a string
+ 
+ 
+# ---------------- LOGIN PAGE ----------------
+def home_page():
+ 
     st.title("Welcome to Lincoln School's Lost and Found!")
-
+ 
     st.write("Select your role:")
-
+ 
     col1, col2, col3, col4, col5, col6 = st.columns(6)
-
-# Select a role feature 
-
+ 
+    # Select a role feature
     with col1:
         if st.button("Admin"):
             st.session_state.role = "Admin"
-            st.write("Admin login selected")
-
+ 
     with col2:
         if st.button("Student"):
             st.session_state.role = "Student"
-            st.write("Student login selected")
-
-
+ 
     if st.session_state.role == "":
         st.error("You must choose a role before logging in")
-
-# Text inputs that allow you to write the username and password in
-    else:
-        username = st.text_input("Username").strip()
-        password = st.text_input("Password", type="password").strip() # type = "password" hides the characters that the user types 
-
-# Login button
+        return  # stop here until a role is chosen
+ 
+    st.write(f"{st.session_state.role} login selected")
+ 
+    # Text inputs that allow you to write the username and password in
+    username = st.text_input("Username").strip()
+    password = st.text_input("Password", type="password").strip()  # hides the characters
+ 
+    # Login button
     if st.button("Login"):
-
-        admin = []
-        student = []
-        found = False 
-
-# Usernames and passwords will be administered by technology, how lincoln does with Microsoft. Therefore, these can be written in a seperate file the webpage can read from 
+        # Usernames and passwords will be administered by technology, how lincoln does with Microsoft.
         if st.session_state.role == "Admin":
-            try:
-                with open("admin.txt", "r") as myfile:
-
-                    for line in myfile:
-                        admin.append(line.strip())
-
-                    if f"{username},{password}" in admin: #The f lets you put variables inside of a string 
-                        found = True
-                        st.success("Welcome Admin!")
-                        st.session_state.page = "admin"
-                        st.rerun() # refresh the app and use a new page 
-
-                if not found: 
-                    st.error("The username or password is incorrect")
-
-            except FileNotFoundError:
-                st.write ("I could not find that file") 
-            except Exception: 
-                st.write("Another error occured")
-
-        if st.session_state.role == "Student":
-            try:
-                with open("student.txt", "r") as myfile:
-
-                    for line in myfile:
-                        student.append(line.strip())
-
-                    if f"{username},{password}" in student: #The f lets you put variables inside of a string 
-                        found = True
-                        st.session_state.username = username 
-                        st.success("Welcome Student!")
-                        st.session_state.page = "student"
-                        st.rerun()
-
-                if not found: 
-                    st.error("The username or password is incorrect")
-
-            except FileNotFoundError:
-                st.write ("I could not find that file") 
-            except Exception: 
-                st.write("Another error occured")
-
+            filename = "admin.txt"
+            next_page = "admin"
+        else:
+            filename = "student.txt"
+            next_page = "student"
+ 
+        try:
+            if check_login(filename, username, password):
+                st.session_state.username = username
+                st.session_state.page = next_page
+                flash(f"Welcome {st.session_state.role}!")
+                st.rerun()  # refresh the app and use a new page
+            else:
+                st.error("The username or password is incorrect")
+ 
+        except FileNotFoundError:
+            st.error(f"I could not find the file {filename}")
+ 
+ 
+# ---------------- ADMIN PAGE ----------------
 def admin_page():
-
+ 
+    logout_button()
+ 
     if "show_form" not in st.session_state:
-        st.session_state.show_form = False 
-
+        st.session_state.show_form = False
+ 
     if "show_claims" not in st.session_state:
         st.session_state.show_claims = False
-
-    st.header("Admin Dashbord")
-
+ 
+    st.header("Admin Dashboard")
+    show_flash()
+ 
     col1, col2 = st.columns(2)
-
+ 
     with col1:
-        if st.button("Add lost item"): 
-            st.session_state.show_form = True # Creates an empty lsit only if it doesnt exsist. 
-
+        if st.button("Add lost item"):
+            st.session_state.show_form = True
+ 
     with col2:
         if st.button("View Claim Requests"):
-            st.session_state.show_claims = not st.session_state.show_claims # when i put True, claims appeared, but wouldn't go away 
-
-   # View all requests to claim an item        
+            st.session_state.show_claims = not st.session_state.show_claims
+ 
+    # View all requests to claim an item
     if st.session_state.show_claims:
         st.subheader("Claim Requests")
-
+ 
         cursor.execute("SELECT * FROM claims")
         claims = cursor.fetchall()
-
+ 
         if len(claims) == 0:
             st.write("No claim requests.")
-
+ 
         else:
             for claim in claims:
                 st.write(f"Item ID: {claim[0]}, Student: {claim[1]}, Claim Date: {claim[2]}, Status: {claim[3]}")
-
-                col1, col2,col3 = st.columns(3)
-
-        # Accept or deny a claim 
+ 
+                col1, col2, col3 = st.columns(3)
+ 
+                # Accept or deny a claim
                 with col1:
-                    if st.button("Accept", key = "accept" + str(claim[0])): # line 83 "Computer Science IA", THere i got the help to fix this error 
+                    if st.button("Accept", key=f"accept_{claim[0]}"):
                         cursor.execute("UPDATE claims SET status = 'Approved' WHERE item_id = ?", (claim[0],))
                         connect.commit()
-                        st.success("Claim approved!")
+                        flash("Claim approved!")
                         st.rerun()
-
-                with col2: 
-                    if st.button("Reject", key = "reject" + str(claim[0])):
+ 
+                with col2:
+                    if st.button("Reject", key=f"reject_{claim[0]}"):
                         cursor.execute("UPDATE claims SET status = 'Rejected' WHERE item_id = ?", (claim[0],))
                         connect.commit()
-                        st.success("Claim rejected")
+                        flash("Claim rejected")
                         st.rerun()
-
+ 
                 with col3:
-                    if claim[3] == "Collected" or "Rejected":
-                        if st.button("Delete Claim", key=f"delete_{claim[0]}"):
+                    # FIX: before it was  == "Collected" or "Rejected"  which is always True
+                    if claim[3] in ("Collected", "Rejected"):
+                        if st.button("Delete Claim", key=f"delete_claim_{claim[0]}"):
                             cursor.execute("DELETE FROM claims WHERE item_id = ?", (claim[0],))
                             connect.commit()
-                            st.success("Claim deleated!")
+                            flash("Claim deleted!")
                             st.rerun()
-
-    # Form required to add a new item 
-
-    if st.session_state.show_form == True:
-        
+ 
+    # Form required to add a new item
+    if st.session_state.show_form:
+ 
         with st.form("add_item"):
-            item_name = st.selectbox("Item Name",["Sweater", "Lunchbox"," Water Bottle", "Pencil Case", "Shirt", "Headphones", "Other"])
-
-            category = st.selectbox("Category",["Clothing", "Electronics", "School Supplies", "Food and Drink", "Personal Items", "Other"])
+            # FIX: removed the extra space in " Water Bottle"
+            item_name = st.selectbox("Item Name", ["Sweater", "Lunchbox", "Water Bottle", "Pencil Case", "Shirt", "Headphones", "Other"])
+ 
+            category = st.selectbox("Category", ["Clothing", "Electronics", "School Supplies", "Food and Drink", "Personal Items", "Other"])
             brand = st.text_input("Brand")
-            color = st.selectbox("Color",["Red", "Orange", "Yellow", "Green", "Blue", "Purple", "Brown", "Black", "White", "Gray"])
-
-            location_found = st.selectbox("Location",["Cafeteria","Central Plaza", "Buses", "Gym", "High School Building", "Middle School Building", "Elementary Building", "Preschool Building"])
+            color = st.selectbox("Color", ["Red", "Orange", "Yellow", "Green", "Blue", "Purple", "Brown", "Black", "White", "Gray"])
+ 
+            location_found = st.selectbox("Location", ["Cafeteria", "Central Plaza", "Buses", "Gym", "High School Building", "Middle School Building", "Elementary Building", "Preschool Building"])
             date_found = st.date_input("Date found")
             image = st.file_uploader("Image")
-
+ 
             submitted = st.form_submit_button("Add Item")
-
+ 
         if submitted:
             new_item = Item(item_name, category, brand, color, location_found, date_found, image)
-            # save the picture in SQLite 
+            # save the picture in SQLite
             if image:
                 image_data = image.getvalue()
             else:
-                image_data = None 
-            
-            # Conncect to the sqlite.db
-
-            cursor.execute("""INSERT INTO lost_items (item_name, category, brand, color, location_found, date_found, image) VALUES (?, ?, ?, ?, ?, ?, ?) """, (new_item.item_name, new_item.category,new_item.brand,new_item.color, new_item.location_found, str(new_item.date_found),image_data)) #the ? are placeholders 
-            connect.commit() #Save 
-
-            st.success("Item added!")
-            
-            st.session_state.show_form = False # works as long as streamlit is running, if it is not, it wont save the information
-            st.rerun() #refresh the webpage.
-
+                image_data = None
+ 
+            cursor.execute("""INSERT INTO lost_items (item_name, category, brand, color, location_found, date_found, image) VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                           (new_item.item_name, new_item.category, new_item.brand, new_item.color, new_item.location_found, str(new_item.date_found), image_data))  # the ? are placeholders
+            connect.commit()  # Save
+ 
+            flash("Item added!")
+            st.session_state.show_form = False
+            st.rerun()  # refresh the webpage.
+ 
     st.subheader("Uploaded Lost Items")
-
+ 
     cursor.execute("SELECT * FROM lost_items")
-    lost_items = cursor.fetchall() # retrieve all of the objects 
-    # This returns a lits of tuples 
-
+    lost_items = cursor.fetchall()  # returns a list of tuples
+ 
     if len(lost_items) == 0:
         st.write("No items are uploaded yet")
-
-    else: 
-    # Add the new item and the new item 
+ 
+    else:
         for item in lost_items:
             st.write(f" Id: {item[0]}, Name: {item[1]}, Category: {item[2]}, Brand: {item[3]}, Color: {item[4]}, Location: {item[5]}, Date: {item[6]}")
-
-    # Delete an object if necessary 
-            if st.button("Delete", key = item[0]):
-
+ 
+            # Delete an object if necessary
+            if st.button("Delete", key=f"delete_item_{item[0]}"):
+ 
+                # Check if there are any existing claim requests
                 cursor.execute("SELECT * FROM claims WHERE item_id = ?", (item[0],))
-    
-    # Check if there are any exsisting claim requests
-
-                exsisting_claim = cursor.fetchone() 
-                if exsisting_claim:
+                existing_claim = cursor.fetchone()
+ 
+                if existing_claim:
                     st.warning("This item cannot be deleted because it has claim requests")
-
-                else: 
+ 
+                else:
                     cursor.execute("DELETE FROM lost_items WHERE id = ?", (item[0],))
                     connect.commit()
-                    st.success("Item deleted!")
-                    st.rerun()  
-
-
+                    flash("Item deleted!")
+                    st.rerun()
+ 
+    # Shows which database file is being used, useful for checking
+    # that admin and student are reading the same file
+    st.sidebar.caption(f"Database: {DB_PATH}")
+ 
+ 
+# ---------------- STUDENT PAGE ----------------
 def student_page():
-
+ 
+    logout_button()
+ 
+    st.header(f"Welcome, {st.session_state.username}")
+    show_flash()
+ 
+    # Streamlit does NOT update a page by itself when the admin changes something
+    # in another browser. This button re-reads the database.
+    if st.button("Refresh"):
+        st.rerun()
+ 
     cursor.execute("SELECT * FROM lost_items")
     lost_items = cursor.fetchall()
-
-# Students' lost items take up more space so, for convencience, I will put their claims at the top 
+ 
+    # Students' lost items take up more space so, for convenience, I will put their claims at the top
     if "show_my_claims" not in st.session_state:
-        st.session_state.show_my_claims = False 
-    
+        st.session_state.show_my_claims = False
+ 
     if st.button("View My Claims"):
-        st.session_state.show_my_claims = not st.session_state.show_my_claims # True does not work form some reason 
-
+        st.session_state.show_my_claims = not st.session_state.show_my_claims
+ 
     if st.session_state.show_my_claims:
         st.subheader("My Claim Requests")
-
-        cursor.execute( "SELECT * FROM claims WHERE student_username = ?", (st.session_state.username,))
-        claims = cursor.fetchall()  
-
-        # Display the approved or denired claim
+ 
+        cursor.execute("SELECT * FROM claims WHERE student_username = ?", (st.session_state.username,))
+        claims = cursor.fetchall()
+ 
+        # Display the approved or denied claim
         if len(claims) == 0:
             st.write("You have not submitted any claims")
-
+ 
         else:
             for claim in claims:
                 cursor.execute("SELECT item_name FROM lost_items WHERE id = ?", (claim[0],))
                 item = cursor.fetchone()
-
+ 
                 if item:
-                    item_name = item[0] 
-                else: 
+                    item_name = item[0]
+                else:
                     item_name = "Deleted item"
-
+ 
                 if claim[3] == "Approved":
-                    st.success(f" Your claim for {item_name} has been approved! Please collect it form the Lost and Found at 2:30pm")
+                    st.success(f"Your claim for {item_name} has been approved! Please collect it from the Lost and Found at 2:30pm")
                     if st.button("Got it!", key=f"got_it_{claim[0]}"):
-                        cursor.execute("UPDATE claims SET status = 'Collected' WHERE item_id = ?", (claim[0],) )
+                        cursor.execute("UPDATE claims SET status = 'Collected' WHERE item_id = ?", (claim[0],))
                         connect.commit()
-                        st.success("Item was collected")
+                        flash("Item was collected")
                         st.rerun()
                 elif claim[3] == "Rejected":
                     st.error(f"Your claim for {item_name} has been rejected. Please contact security for more information")
                 elif claim[3] == "Collected":
-                    st.success("You have collected your item")
+                    st.success(f"You have collected your {item_name}")
                 else:
-                    st.info(f"Your request for {item_name} is still pending") #it is nither an error not success, but i want it to have a condition. im not sure if this makes sense
-
-
-                
+                    st.info(f"Your request for {item_name} is still pending")
+ 
         st.divider()
-# Add a filter. Make it easier for people to find the lost items
-
+ 
+    # Add a filter. Make it easier for people to find the lost items
     st.subheader("Search")
-    # linear search algorithm 
-    search_field = st.selectbox("Search by", ["Name","Category", "Brand", "Color", "Location"])
-
+    # linear search algorithm
+    search_field = st.selectbox("Search by", ["Name", "Category", "Brand", "Color", "Location"])
+ 
     st.divider()
     st.text("Item names available: Sweater, Lunchbox, Water Bottle, Pencil Case, Shirt, Headphones, Other")
     st.text("Categories available: Clothing, Electronics, School Supplies, Food and Drink, Personal Items, Other")
     st.text("Colors available: Red, Orange, Yellow, Green, Blue, Purple, Brown, Black, White, Gray")
-    st.text("Locations availables: Cafeteria,Central Plaza, Buses, Gym, High School Building, Middle School Building, Elementary Building, Preschool Building")
+    st.text("Locations available: Cafeteria, Central Plaza, Buses, Gym, High School Building, Middle School Building, Elementary Building, Preschool Building")
     st.divider()
-    
-    search_text = st.text_input("Enter what you are looking for (e.g. red):")
-    
-
+ 
+    search_text = st.text_input("Enter what you are looking for (e.g. red):").strip()
+ 
     filtered_items = []
     if search_text == "":
-        filtered_items = lost_items 
+        filtered_items = lost_items
     else:
         for item in lost_items:
             if search_field == "Name":
@@ -306,69 +347,58 @@ def student_page():
                 value = item[4]
             else:
                 value = item[5]
-
+ 
             if value and search_text.lower() in value.lower():
                 filtered_items.append(item)
-
-          
-# View the lost items 
-
-    if len(filtered_items) == 0:
+ 
+    # View the lost items
+    # FIX: different message when there are no items vs. when the search found nothing
+    if len(lost_items) == 0:
         st.write("No lost items have been uploaded yet.")
-    
-    for item in filtered_items: 
+    elif len(filtered_items) == 0:
+        st.write("No items match your search.")
+ 
+    for item in filtered_items:
         col1, col2 = st.columns(2)
-
+ 
         with col1:
             if item[7]:
-                st.image(item[7], width = 300)
-
-        with col2: 
+                st.image(item[7], width=300)
+ 
+        with col2:
             st.write(f"{item[1]}")
             st.write(f"Category: {item[2]}")
             st.write(f"Brand: {item[3]}")
-            st.write(f" Color: {item[4]}")
-            st.write(f" Location found: {item [5]}")
-            st.write(f" Date found: {item[6]}")
-
-        #Claim button 
-    
-        if st.button("Claim", key = item[0]): #the key will prevent issues if there are duplicates 
-
-            cursor.execute("SELECT * FROM claims WHERE item_id = ?", (item[0],))
-            existing_claim = cursor.fetchone() # unlike fetchall that retrieves everything, fetchone retries one row
-
-            if existing_claim:
-                st.warning("this item has already been claimed.")
-
-            else:
-                cursor.execute("""INSERT INTO claims(item_id, student_username, claim_date, status) VALUES (?, ?, ?, ?)""", (item[0], st.session_state.username, str(date.today()), "Pending"))
-                connect.commit()
-                st.success("Claim submitted!")
-
-    st.divider() # Draw a horizontal line across the page, separate the objects
+            st.write(f"Color: {item[4]}")
+            st.write(f"Location found: {item[5]}")
+            st.write(f"Date found: {item[6]}")
  
-
-
+        # Claim button
+        if st.button("Claim", key=f"claim_{item[0]}"):  # the key prevents issues if there are duplicates
+ 
+            cursor.execute("SELECT * FROM claims WHERE item_id = ?", (item[0],))
+            existing_claim = cursor.fetchone()  # fetchone retrieves one row
+ 
+            if existing_claim:
+                st.warning("This item has already been claimed.")
+ 
+            else:
+                cursor.execute("""INSERT INTO claims(item_id, student_username, claim_date, status) VALUES (?, ?, ?, ?)""",
+                               (item[0], st.session_state.username, str(date.today()), "Pending"))
+                connect.commit()
+                flash("Claim submitted!")
+                st.rerun()
+ 
+        st.divider()  # Draw a horizontal line across the page, separate the objects
+ 
+ 
+# ---------------- PAGE ROUTER ----------------
 if st.session_state.page == "login":
     home_page()
-
+ 
 elif st.session_state.page == "admin":
-    st.write("Going to admin page")
     admin_page()
-
+ 
 elif st.session_state.page == "student":
     student_page()
-
-# My internet is slow 
-#Next time you open this, delete the object you already created and add a new one 
-# see if this fixes the bug, it is not creating the id. 
-# I assume it is because the object was created before I implemented that feature
-
-
-# My head hurts.
-# Next time you open this, attempt to debug the student's claim button, for some reason this isnt appearing on the screen 
-# I suspect the admin's acceptance or denial isnt being saved. 
-# I want to make this "View your claim " button like the admin's one. where they can see everyone's claims, accept or deny them 
-# However, when students press their button, it will tell them whether it is accepted or denied. If acepted, it must tell them where to find it. 
-
+ 
