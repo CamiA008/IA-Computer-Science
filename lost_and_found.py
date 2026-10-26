@@ -1,13 +1,13 @@
-#Lost and found
-#streamlit run "lost_and_found.py"
-
 import streamlit as st
 from datetime import date
 from pathlib import Path
 from object import Item
 import sqlite3
  
-
+# ---------------- DATABASE SETUP ----------------
+# Always use the sqlite.db file that sits in the SAME folder as this script.
+# Before, "sqlite.db" was a relative path, so if the app was started from a
+# different folder, SQLite silently created a brand new empty database there.
 DB_PATH = Path(__file__).parent / "sqlite.db"
  
 connect = sqlite3.connect(DB_PATH, check_same_thread=False)
@@ -158,10 +158,22 @@ def admin_page():
         st.subheader("Claim Requests")
  
         cursor.execute("SELECT * FROM claims")
-        claims = cursor.fetchall()
+        all_claims = cursor.fetchall()
  
-        if len(claims) == 0:
+        # Search claims by student name (linear search, ignores capitals and spaces)
+        student_search = st.text_input("Search claims by student username:").strip().lower()
+ 
+        claims = []
+        for claim in all_claims:
+            stored_name = (claim[1] or "").strip().lower()
+            if student_search == "" or student_search in stored_name:
+                claims.append(claim)
+ 
+        if len(all_claims) == 0:
             st.write("No claim requests.")
+ 
+        elif len(claims) == 0:
+            st.write(f"No claims found for '{student_search}'.")
  
         else:
             for claim in claims:
@@ -284,8 +296,10 @@ def student_page():
  
     if st.session_state.show_my_claims:
         st.subheader("My Claim Requests")
+        st.caption(f"Showing claims for: {st.session_state.username}")
  
-        cursor.execute("SELECT * FROM claims WHERE student_username = ?", (st.session_state.username,))
+        # Compare usernames ignoring capitals and extra spaces, so "Ana", "ana" and "ana " all match
+        cursor.execute("SELECT * FROM claims WHERE LOWER(TRIM(student_username)) = LOWER(TRIM(?))", (st.session_state.username,))
         claims = cursor.fetchall()
  
         # Display the approved or denied claim
@@ -401,4 +415,3 @@ elif st.session_state.page == "admin":
  
 elif st.session_state.page == "student":
     student_page()
- 
