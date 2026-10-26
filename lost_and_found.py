@@ -4,10 +4,7 @@ from pathlib import Path
 from object import Item
 import sqlite3
  
-# ---------------- DATABASE SETUP ----------------
-# Always use the sqlite.db file that sits in the SAME folder as this script.
-# Before, "sqlite.db" was a relative path, so if the app was started from a
-# different folder, SQLite silently created a brand new empty database there.
+
 DB_PATH = Path(__file__).parent / "sqlite.db"
  
 connect = sqlite3.connect(DB_PATH, check_same_thread=False)
