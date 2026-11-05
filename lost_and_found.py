@@ -3,35 +3,8 @@ from datetime import date
 from pathlib import Path
 from object import Item
 import sqlite3
- 
 
-DB_PATH = Path(__file__).parent / "sqlite.db"
- 
-connect = sqlite3.connect(DB_PATH, check_same_thread=False)
-cursor = connect.cursor()
- 
-# Create the tables only if they don't exist yet.
-# "IF NOT EXISTS" means this NEVER deletes or overwrites existing data.
-cursor.execute("""CREATE TABLE IF NOT EXISTS lost_items (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    item_name TEXT,
-    category TEXT,
-    brand TEXT,
-    color TEXT,
-    location_found TEXT,
-    date_found TEXT,
-    image BLOB
-)""")
- 
-cursor.execute("""CREATE TABLE IF NOT EXISTS claims (
-    item_id INTEGER,
-    student_username TEXT,
-    claim_date TEXT,
-    status TEXT
-)""")
-connect.commit()
- 
-# ---------------- SESSION STATE ----------------
+
 if "page" not in st.session_state:
     st.session_state.page = "login"  # remembers which screen user should see
  
@@ -44,89 +17,103 @@ if "username" not in st.session_state:
 if "flash" not in st.session_state:  # message that survives st.rerun()
     st.session_state.flash = ""
  
- 
-# ---------------- HELPERS ----------------
-def flash(message):
-    # st.success() right before st.rerun() disappears instantly,
-    # so the message is saved and shown after the page reloads
-    st.session_state.flash = message
- 
- 
-def show_flash():
-    if st.session_state.flash != "":
-        st.success(st.session_state.flash)
-        st.session_state.flash = ""
- 
- 
-def logout_button():
-    if st.sidebar.button("Log out"):
-        st.session_state.page = "login"
-        st.session_state.role = ""
-        st.session_state.username = ""
-        st.rerun()
+#Connect to the database 
+
+connect = sqlite3.connect("sqlite.db", check_same_thread = False)
+cursor = connect.cursor()
+
+if "page" not in st.session_state:
+    st.session_state.page = "login" # remembers which screen user should see 
+
+if "role" not in st.session_state: # Remembers the role  
+    st.session_state.role = ""
+
+if "username" not in st.session_state:
+    st.session_state.username = ""
  
  
-def check_login(filename, username, password):
-    # Returns True if "username,password" is a line in the file
-    users = []
-    with open(Path(__file__).parent / filename, "r") as myfile:
-        for line in myfile:
-            users.append(line.strip())
-    return f"{username},{password}" in users  # The f lets you put variables inside of a string
- 
- 
-# ---------------- LOGIN PAGE ----------------
-def home_page():
- 
+def home_page(): 
+    
     st.title("Welcome to Lincoln School's Lost and Found!")
- 
+
     st.write("Select your role:")
- 
+
     col1, col2, col3, col4, col5, col6 = st.columns(6)
- 
-    # Select a role feature
+
+# Select a role feature 
+
     with col1:
         if st.button("Admin"):
             st.session_state.role = "Admin"
- 
+            st.write("Admin login selected")
+
     with col2:
         if st.button("Student"):
             st.session_state.role = "Student"
- 
+            st.write("Student login selected")
+
+
     if st.session_state.role == "":
         st.error("You must choose a role before logging in")
-        return  # stop here until a role is chosen
- 
-    st.write(f"{st.session_state.role} login selected")
- 
-    # Text inputs that allow you to write the username and password in
-    username = st.text_input("Username").strip()
-    password = st.text_input("Password", type="password").strip()  # hides the characters
- 
-    # Login button
+
+# Text inputs that allow you to write the username and password in
+    else:
+        username = st.text_input("Username").strip()
+        password = st.text_input("Password", type="password").strip() # type = "password" hides the characters that the user types 
+
+# Login button
     if st.button("Login"):
-        # Usernames and passwords will be administered by technology, how lincoln does with Microsoft.
+
+        admin = []
+        student = []
+        found = False 
+
+# Usernames and passwords will be administered by technology, how lincoln does with Microsoft. Therefore, these can be written in a seperate file the webpage can read from 
         if st.session_state.role == "Admin":
-            filename = "admin.txt"
-            next_page = "admin"
-        else:
-            filename = "student.txt"
-            next_page = "student"
+            try:
+                with open("admin.txt", "r") as myfile:
+
+                    for line in myfile:
+                        admin.append(line.strip())
+
+                    if f"{username},{password}" in admin: #The f lets you put variables inside of a string 
+                        found = True
+                        st.success("Welcome Admin!")
+                        st.session_state.page = "admin"
+                        st.rerun() # refresh the app and use a new page 
+
+                if not found: 
+                    st.error("The username or password is incorrect")
+
+            except FileNotFoundError:
+                st.write ("I could not find that file") 
+            except Exception: 
+                st.write("Another error occured")
+
+        if st.session_state.role == "Student":
+            try:
+                with open("student.txt", "r") as myfile:
+
+                    for line in myfile:
+                        student.append(line.strip())
+
+                    if f"{username},{password}" in student: #The f lets you put variables inside of a string 
+                        found = True
+                        st.session_state.username = username 
+                        st.success("Welcome Student!")
+                        st.session_state.page = "student"
+                        st.rerun()
+
+                if not found: 
+                    st.error("The username or password is incorrect")
+
+            except FileNotFoundError:
+                st.write ("I could not find that file") 
+            except Exception: 
+                st.write("Another error occured")
+
  
-        try:
-            if check_login(filename, username, password):
-                st.session_state.username = username
-                st.session_state.page = next_page
-                flash(f"Welcome {st.session_state.role}!")
-                st.rerun()  # refresh the app and use a new page
-            else:
-                st.error("The username or password is incorrect")
- 
-        except FileNotFoundError:
-            st.error(f"I could not find the file {filename}")
- 
- 
-# ---------------- ADMIN PAGE ----------------
+
 def admin_page():
  
     logout_button()
@@ -268,7 +255,7 @@ def admin_page():
     st.sidebar.caption(f"Database: {DB_PATH}")
  
  
-# ---------------- STUDENT PAGE ----------------
+
 def student_page():
  
     logout_button()
@@ -403,7 +390,7 @@ def student_page():
         st.divider()  # Draw a horizontal line across the page, separate the objects
  
  
-# ---------------- PAGE ROUTER ----------------
+
 if st.session_state.page == "login":
     home_page()
  
