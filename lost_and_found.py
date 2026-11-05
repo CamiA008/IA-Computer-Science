@@ -271,6 +271,51 @@ def student_page():
                     st.success("You have collected your item")
                 else:
                     st.info(f"Your request for {item_name} is still pending") #it is nither an error not success, but i want it to have a condition. im not sure if this makes sense
+
+
+         # Search and display uploaded lost items
+    st.subheader("Uploaded Lost Items")
+ 
+    # Search by Item ID
+    search_id = st.text_input(
+        "Search by Item ID",
+        placeholder="Enter the Item ID..."
+    )
+ 
+    if search_id:
+        if search_id.isdigit():
+            found_item = db.get_item(int(search_id))
+ 
+            if found_item:
+                lost_items = [found_item]
+            else:
+                lost_items = []
+                st.warning("No item found with that ID.")
+        else:
+            st.warning("Please enter a valid numeric Item ID.")
+            lost_items = []
+    else:
+        lost_items = db.get_all_items()
+ 
+    # Display the matching items
+    if not lost_items:
+        if not search_id:
+            st.write("No items are uploaded yet.")
+    else:
+        for item in lost_items:
+            st.write(f"ID: {item['id']}, Name: {item['item_name']}, Category: {item['category']}, Brand: {item['brand']}, Color: {item['color']}, Location: {item['location_found']}, Date: {item['date_found']}")
+ 
+            # Delete item if it has no claim requests
+            if st.button("Delete", key=f"delete_item_{item['id']}"):
+ 
+                if db.get_claim_for_item(item["id"]):
+                    st.warning("This item cannot be deleted because it has claim requests.")
+                else:
+                    db.delete_item(item) # deletes the item and its photo
+ 
+                    st.success("Item deleted!")
+                    st.rerun()
+ 
  
  
                 
