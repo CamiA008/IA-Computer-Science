@@ -292,16 +292,21 @@ def student_page():
                     st.info(f"Your request for {item_name} is still pending") #it is nither an error not success, but i want it to have a condition. im not sure if this makes sense
  
  
- 
- 
-                
-        st.divider()
-# Add a filter. Make it easier for people to find the lost items
+  
+
  
     st.subheader("Search")
     # linear search algorithm 
     search_field = st.selectbox("Search by", ["Name","Category", "Brand", "Color", "Location"])
-    search_text = st.text_input("Enter what you are looking for (e.g. adidas):")
+ 
+    st.divider()
+    st.text("Item names available: Sweater, Lunchbox, Water Bottle, Pencil Case, Shirt, Headphones, Other")
+    st.text("Categories available: Clothing, Electronics, School Supplies, Food and Drink, Personal Items, Other")
+    st.text("Colors available: Red, Orange, Yellow, Green, Blue, Purple, Brown, Black, White, Gray")
+    st.text("Locations availables: Cafeteria,Central Plaza, Buses, Gym, High School Building, Middle School Building, Elementary Building, Preschool Building")
+    st.divider()
+ 
+    search_text = st.text_input("Enter what you are looking for (e.g. Red):")
  
     filtered_items = []
     if search_text == "":
